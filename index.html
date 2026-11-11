@@ -143,7 +143,7 @@
         <!-- The address is put together by the script below so scrapers can't read it from the page source. -->
         <a id="email" href="#" data-user="alan" data-domain="alanindex.com">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 4h18a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Zm0 2v.51l9 5.63 9-5.63V6H3Zm18 2.87-8.47 5.3a1 1 0 0 1-1.06 0L3 8.87V18h18V8.87Z"/></svg>
-          Contact
+          <span class="label">Contact</span>
         </a>
       </li>
     </ul>
@@ -154,7 +154,21 @@
   <script>
     (function () {
       var a = document.getElementById('email');
-      a.href = 'mailto:' + a.dataset.user + '@' + a.dataset.domain;
+      var label = a.querySelector('.label');
+      var address = a.dataset.user + '@' + a.dataset.domain;
+      var timer;
+      a.href = 'mailto:' + address;
+      // mailto: does nothing on PCs with no email app set up, so also copy
+      // the address and show it on the button. The mailto still opens a mail
+      // app wherever one exists (phones, Outlook, etc.).
+      a.addEventListener('click', function () {
+        if (!navigator.clipboard) return;
+        navigator.clipboard.writeText(address).then(function () {
+          label.textContent = 'Copied ' + address;
+          clearTimeout(timer);
+          timer = setTimeout(function () { label.textContent = 'Contact'; }, 3000);
+        });
+      });
     })();
   </script>
 </body>
