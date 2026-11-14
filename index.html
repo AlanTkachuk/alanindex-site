@@ -178,20 +178,53 @@
        counted as before. -->
   <script>
     (function () {
+      // Where the visitor came from, when the link says so (Instagram adds ?utm_source=ig to
+      // bio links). GoatCounter only reads that for visits, not button clicks, so the site
+      // passes it to both itself, spelled out, and takes it out of the address bar.
+      var NAMES = { ig: 'Instagram', instagram: 'Instagram', tiktok: 'TikTok', tt: 'TikTok',
+                    yt: 'YouTube', youtube: 'YouTube', fb: 'Facebook', facebook: 'Facebook' };
+      var SOURCE_KEYS = ['utm_source', 'ref', 'src', 'source'];
+      var source = '';
+      try {
+        var url = new URL(location.href);
+        SOURCE_KEYS.some(function (k) {
+          var v = (url.searchParams.get(k) || '').trim();
+          if (v) source = NAMES[v.toLowerCase()] || v;
+          return !!v;
+        });
+        if (source) {
+          SOURCE_KEYS.forEach(function (k) { url.searchParams.delete(k); });
+          history.replaceState(null, '', url.pathname + url.search + url.hash);
+          document.querySelectorAll('[data-goatcounter-click]').forEach(function (a) {
+            a.dataset.goatcounterReferrer = source;
+          });
+        }
+      } catch (e) {}
+
       var signals = ['pointerdown', 'touchstart', 'mousemove', 'keydown', 'wheel'];
-      var done = false;
+      var interacted = false;
+      var counted = false;
+      function gc() { return window.goatcounter && window.goatcounter.count ? window.goatcounter : null; }
+      function countVisit() {
+        if (counted || !interacted || !gc()) return;
+        counted = true;
+        gc().count(source ? { referrer: source } : undefined);
+      }
       function onSignal() {
-        if (done) return;
-        done = true;
+        if (interacted) return;
+        interacted = true;
         signals.forEach(function (s) { window.removeEventListener(s, onSignal, true); });
-        // The GoatCounter script loads in the background; wait for it for up to 10 seconds.
-        var tries = 0;
-        (function send() {
-          if (window.goatcounter && window.goatcounter.count) return window.goatcounter.count();
-          if (++tries < 40) setTimeout(send, 250);
-        })();
+        countVisit();
       }
       signals.forEach(function (s) { window.addEventListener(s, onSignal, { capture: true, passive: true }); });
+      // The GoatCounter script loads in the background. Once it's there, set up the button
+      // clicks (no_onload makes GoatCounter skip that) and count the visit if someone has
+      // already interacted. Gives up after 30 seconds, e.g. when an ad blocker stops it.
+      var tries = 0;
+      (function whenReady() {
+        if (gc()) { gc().bind_events(); countVisit(); return; }
+        if (++tries < 120) setTimeout(whenReady, 250);
+      })();
     })();
   </script>
   <script data-goatcounter="https://alanindex.goatcounter.com/count" data-goatcounter-settings='{"no_onload": true}' async src="https://gc.zgo.at/count.js"></script>
